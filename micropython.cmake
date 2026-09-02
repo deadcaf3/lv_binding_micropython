@@ -60,6 +60,6 @@ target_link_libraries(usermod_lvgl INTERFACE lvgl_interface)
 if (DEFINED LV_CONF_DIR)
     target_include_directories(usermod INTERFACE ${LV_CONF_DIR})
 endif()
-target_compile_options(usermod INTERFACE -DLV_CONF_PATH="${LV_CONF_PATH}" -Wno-deprecated-declarations)
+target_compile_options(usermod INTERFACE -DLV_CONF_PATH="${LV_CONF_PATH}" -DLVGL_DIR="${LVGL_DIR}" -Wno-deprecated-declarations)
 target_link_libraries(usermod INTERFACE usermod_lvgl)
 

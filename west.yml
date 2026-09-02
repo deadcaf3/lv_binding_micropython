@@ -1,0 +1,13 @@
+manifest:
+  remotes:
+    - name: eliben
+      url-base: https://github.com/eliben
+
+  projects:
+    - name: pycparser
+      remote: eliben
+      revision: 3cf6bf5eb16f5eadd4a058e41596145c407a79ad
+      path: modules/lib/gui/lv_binding_micropython/pycparser
+
+  self:
+    path: modules/lib/gui/lv_binding_micropython

@@ -115,7 +115,9 @@ endfunction()
 
 # Definitions for specific bindings
 
-set(LVGL_DIR ${LV_BINDINGS_DIR}/lvgl)
+if(NOT DEFINED LVGL_DIR)
+    set(LVGL_DIR ${LV_BINDINGS_DIR}/lvgl)
+endif()
 
 set(LV_MP ${CMAKE_BINARY_DIR}/lv_mp.c)
 if(ESP_PLATFORM)

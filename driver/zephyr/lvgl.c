@@ -14,7 +14,6 @@
 
 #include <init.h>
 #include <stdio.h>
-#include <zephyr.h>
 #include <lvgl.h>
 #include "lvgl_display.h"
 #include "lvgl_driver.h"
@@ -22,11 +21,12 @@
 #ifdef CONFIG_LVGL_USE_FILESYSTEM
 #include "lvgl_fs.h"
 #endif
-#define CONFIG_LVGL_POINTER_KSCAN 1
 #ifdef CONFIG_LVGL_POINTER_KSCAN
 #include <drivers/kscan.h>
 #endif
+#ifdef LV_MEM_CUSTOM_INCLUDE
 #include LV_MEM_CUSTOM_INCLUDE
+#endif
 
 #ifdef CONFIG_LVGL_BUFFER_ALLOC_STATIC
 
