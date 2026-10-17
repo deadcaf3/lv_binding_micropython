@@ -1358,10 +1358,13 @@ void mp_lv_init_gc()
     }
 }
 
+static int _nesting;
+
 void mp_lv_deinit_gc()
 {
 
     // mp_printf(&mp_plat_print, "[ DEINIT GC ]");
+    _nesting = 0;
     mp_lv_roots = MP_STATE_VM(mp_lv_roots) = NULL;
     mp_lv_user_data = MP_STATE_VM(mp_lv_user_data) = NULL;
     mp_lv_roots_initialized = MP_STATE_VM(mp_lv_roots_initialized) = 0;
@@ -1805,6 +1808,22 @@ static void *mp_lv_callback(mp_obj_t mp_callback, void *lv_callback, qstr callba
 }
 
 static int _nesting = 0;
+
+// An exception raised by a Python callback must not unwind through LVGL's C frames: LVGL keeps
+// stack-allocated events in a global list and sets re-entrancy guards that only a normal return
+// undoes. The callback trampolines catch it here: a KeyboardInterrupt is raised again once
+// control is back in Python, anything else is printed.
+GENMPY_UNUSED static void mp_lv_callback_exception(void *exc)
+{
+    mp_obj_t e = MP_OBJ_FROM_PTR(exc);
+
+    if (mp_obj_is_subclass_fast(MP_OBJ_FROM_PTR(mp_obj_get_type(e)), MP_OBJ_FROM_PTR(&mp_type_KeyboardInterrupt))) {
+        mp_sched_keyboard_interrupt();
+    } else {
+        mp_printf(&mp_plat_print, "Exception in an LVGL callback:\\n");
+        mp_obj_print_exception(&mp_plat_print, e);
+    }
+}
 
 // Function pointers wrapper
 
@@ -2925,11 +2944,17 @@ def gen_callback_func(func, func_name=None, user_data_argument=False):
 
 GENMPY_UNUSED static {return_type} {func_name}_callback({func_args})
 {{
-    mp_obj_t mp_args[{num_args}];
-    {build_args}
-    mp_obj_t callbacks = get_callback_dict_from_user_data({user_data});
+    {return_declaration}nlr_buf_t nlr;
     _nesting++;
-    {return_value_assignment}mp_call_function_n_kw(mp_obj_dict_get(callbacks, MP_OBJ_NEW_QSTR(MP_QSTR_{func_name})) , {num_args}, 0, mp_args);
+    if (nlr_push(&nlr) == 0) {{
+        mp_obj_t mp_args[{num_args}];
+        {build_args}
+        mp_obj_t callbacks = get_callback_dict_from_user_data({user_data});
+        {return_value_assignment}mp_call_function_n_kw(mp_obj_dict_get(callbacks, MP_OBJ_NEW_QSTR(MP_QSTR_{func_name})) , {num_args}, 0, mp_args);
+        {return_value_conversion}nlr_pop();
+    }} else {{
+        mp_lv_callback_exception(nlr.ret_val);
+    }}
     _nesting--;
     return{return_value};
 }}
@@ -2946,12 +2971,18 @@ GENMPY_UNUSED static {return_type} {func_name}_callback({func_args})
                 ]
             ),
             user_data=full_user_data,
+            return_declaration=""
+            if return_type == "void"
+            else "%s ret = {0};\n    " % return_type,
             return_value_assignment=""
             if return_type == "void"
             else "mp_obj_t callback_result = ",
+            return_value_conversion=""
+            if return_type == "void"
+            else "ret = %s(callback_result);\n        " % mp_to_lv[return_type],
             return_value=""
             if return_type == "void"
-            else " %s(callback_result)" % mp_to_lv[return_type],
+            else " ret",
         )
     )
     generated_callbacks[func_name] = True
