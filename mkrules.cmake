@@ -79,11 +79,17 @@ function(lv_bindings)
                 echo "\"#include\"" "\"\\\"${LVGL_DIR}/src/lvgl_private.h\\\"\"" >> ${LVGL_ALL_H}
             COMMAND_EXPAND_LISTS
         )
+        # gen_json.py preprocesses with the host gcc and its lv_conf_template.h enables
+        # LV_USE_FREETYPE: the freetype stubs stand in for real headers, which pycparser cannot
+        # parse (a Nix shell puts them on the path through NIX_CFLAGS_COMPILE). gen_mpy.py uses
+        # no docstrings, which would need Doxygen.
         add_custom_command(
             OUTPUT
                 ${LV_JSON}
             COMMAND
-                ${Python3_EXECUTABLE} ${LVGL_DIR}/scripts/gen_json/gen_json.py --target-header ${LVGL_ALL_H} > ${LV_JSON}
+                ${CMAKE_COMMAND} -E env --unset=NIX_CFLAGS_COMPILE
+                "C_INCLUDE_PATH=${LV_BINDINGS_DIR}/stubs/include/freetype2"
+                ${Python3_EXECUTABLE} ${LVGL_DIR}/scripts/gen_json/gen_json.py --no-docstrings --target-header ${LVGL_ALL_H} > ${LV_JSON}
             DEPENDS
                 ${LVGL_DIR}/scripts/gen_json/gen_json.py
                 ${LVGL_ALL_H}
